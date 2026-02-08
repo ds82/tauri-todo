@@ -1,0 +1,5 @@
+(A) Write project documentation +tauri-todo @computer
+(B) Buy groceries for the week @errands
+Design the settings page +tauri-todo @computer
+x 2025-12-01 2025-11-28 Set up CI pipeline +tauri-todo @computer
+Call dentist for appointment @phone
