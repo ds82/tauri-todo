@@ -1,0 +1,14 @@
+[build]
+target = "./index.html"
+
+[watch]
+ignore = ["./src-tauri"]
+
+[serve]
+port = 1420
+open = false
+
+[[hooks]]
+stage = "pre_build"
+command = "node_modules/.bin/tailwindcss"
+command_arguments = ["-i", "input.css", "-o", "styles.css"]
