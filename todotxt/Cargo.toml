@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-todo-txt = { version = "4", features = ["serde"] }
+todo-txt = { version = "4", features = ["serde", "extended"] }
 serde = { version = "1", features = ["derive"] }
