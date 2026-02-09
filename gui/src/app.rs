@@ -1,7 +1,11 @@
+use std::collections::HashSet;
+
 use leptos::task::spawn_local;
 use leptos::{ev::SubmitEvent, prelude::*};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+
+use crate::project_tree::{build_project_tree, render_project_tree, PROJECT_SEPARATOR};
 
 #[wasm_bindgen]
 extern "C" {
@@ -9,15 +13,15 @@ extern "C" {
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct TodoItem {
-    id: usize,
-    subject: String,
-    raw: String,
-    finished: bool,
-    priority: u8,
-    contexts: Vec<String>,
-    projects: Vec<String>,
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct TodoItem {
+    pub id: usize,
+    pub subject: String,
+    pub raw: String,
+    pub finished: bool,
+    pub priority: u8,
+    pub contexts: Vec<String>,
+    pub projects: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -58,6 +62,28 @@ pub fn App() -> impl IntoView {
     let (new_todo, set_new_todo) = signal(String::new());
     let (editing_id, set_editing_id) = signal(Option::<usize>::None);
     let (edit_text, set_edit_text) = signal(String::new());
+    let (projects_panel_open, set_projects_panel_open) = signal(false);
+    let (active_project_filter, set_active_project_filter) = signal(Option::<String>::None);
+    let (collapsed_nodes, set_collapsed_nodes) = signal(HashSet::<String>::new());
+
+    let project_tree = Memo::new(move |_| build_project_tree(&todos.get()));
+
+    let displayed_todos = Memo::new(move |_| {
+        let all = todos.get();
+        match active_project_filter.get() {
+            None => all,
+            Some(filter) => {
+                let prefix = format!("{}{}", filter, PROJECT_SEPARATOR);
+                all.into_iter()
+                    .filter(|todo| {
+                        todo.projects
+                            .iter()
+                            .any(|p| *p == filter || p.starts_with(&prefix))
+                    })
+                    .collect()
+            }
+        }
+    });
 
     let load_todos = move || {
         spawn_local(async move {
@@ -101,9 +127,35 @@ pub fn App() -> impl IntoView {
             <nav class="fixed left-0 top-0 h-full w-16 bg-base-300 flex flex-col items-center py-4 z-50">
                 <ul class="menu menu-vertical gap-2">
                     <li>
-                        <a class="menu-active tooltip tooltip-right" data-tip="Todos">
+                        <a
+                            class="tooltip tooltip-right"
+                            class=("menu-active", move || !projects_panel_open.get())
+                            data-tip="Todos"
+                            on:click=move |_| {
+                                set_projects_panel_open.set(false);
+                                set_active_project_filter.set(None);
+                            }
+                        >
+                            // <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            //     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                            // </svg>
+
+                        <svg class="w-28px h-28px text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                          <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 13h3.439a.991.991 0 0 1 .908.6 3.978 3.978 0 0 0 7.306 0 .99.99 0 0 1 .908-.6H20M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6M4 13l2-9h12l2 9M9 7h6m-7 3h8"/>
+                        </svg>
+
+
+                        </a>
+                    </li>
+                    <li>
+                        <a
+                            class="tooltip tooltip-right"
+                            class=("menu-active", move || projects_panel_open.get())
+                            data-tip="Projects"
+                            on:click=move |_| set_projects_panel_open.update(|v| *v = !*v)
+                        >
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
                             </svg>
                         </a>
                     </li>
@@ -127,10 +179,54 @@ pub fn App() -> impl IntoView {
                 </ul>
             </nav>
 
+            // Projects panel
+            <aside
+                class="fixed left-16 top-0 w-64 h-full bg-base-300 z-40 overflow-y-auto border-r border-base-content/10"
+                class=("hidden", move || !projects_panel_open.get())
+            >
+                <div class="p-3">
+                    <h2 class="text-sm font-semibold tracking-wide opacity-60 mb-2">"Projects"</h2>
+                    <div
+                        class="flex items-center gap-1 px-2 py-1 cursor-pointer rounded hover:bg-base-200"
+                        class=("bg-primary/20", move || active_project_filter.get().is_none())
+                        on:click=move |_| set_active_project_filter.set(None)
+                    >
+
+                        <svg class="w-24px h-24px text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                          <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 13h3.439a.991.991 0 0 1 .908.6 3.978 3.978 0 0 0 7.306 0 .99.99 0 0 1 .908-.6H20M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6M4 13l2-9h12l2 9M9 7h6m-7 3h8"/>
+                        </svg>
+
+                        <span class="text-sm">"All"</span>
+                    </div>
+                    <div class="mt-1">
+                        {move || render_project_tree(
+                            project_tree.get(),
+                            0,
+                            active_project_filter,
+                            set_active_project_filter,
+                            collapsed_nodes,
+                            set_collapsed_nodes,
+                        )}
+                    </div>
+                </div>
+            </aside>
+
             // Main content
-            <main class="ml-16 flex-1 overflow-y-auto bg-base-200 p-8">
+            <main
+                class="flex-1 overflow-y-auto bg-base-200 p-8 transition-[margin-left] duration-200"
+                class=("ml-16", move || !projects_panel_open.get())
+                class=("ml-80", move || projects_panel_open.get())
+            >
                 <div class="max-w-5xl mx-auto">
-                    <h1 class="text-3xl font-bold mb-6">"Inbox"</h1>
+                    <h1 class="text-3xl font-bold mb-6">
+                        {move || match active_project_filter.get() {
+                            None => "Inbox".to_string(),
+                            Some(p) => {
+                                // Show just the last segment of the project path
+                                p.rsplit(PROJECT_SEPARATOR).next().unwrap_or(&p).to_string()
+                            }
+                        }}
+                    </h1>
 
                     {move || error.get().map(|e| view! {
                         <div class="alert alert-error mb-4">
@@ -142,7 +238,7 @@ pub fn App() -> impl IntoView {
                         <div class="card-body p-0">
                             <ul class="list">
                                 <For
-                                    each=move || todos.get()
+                                    each=move || displayed_todos.get()
                                     key=|item| (item.id, item.raw.clone(), item.finished)
                                     children=move |item| {
                                         let id = item.id;
@@ -211,7 +307,7 @@ pub fn App() -> impl IntoView {
                                         };
 
                                         view! {
-                                            <li class="list-row group cursor-pointer hover:bg-base-300 transition-colors" >
+                                            <li class="list-row p-2 group cursor-pointer hover:bg-base-300 transition-colors" >
                                                     <input
                                                         type="checkbox"
                                                         class="checkbox checkbox-accent"
@@ -236,17 +332,16 @@ pub fn App() -> impl IntoView {
                                                             on:keydown=on_edit_keydown
                                                             on:blur=move |_| set_editing_id.set(None)
                                                         />
-                                                        <div class="flex gap-1 mt-1">
+                                                        <span>" "</span>
                                                             {priority_label(priority).map(|p| view! {
-                                                                <span class="badge badge-primary badge-sm">{p}</span>
+                                                                <span class="badge p-1 badge-primary badge-sm">{p}</span>
                                                             })}
                                                             {projects.into_iter().map(|p| view! {
-                                                                <span class="badge badge-secondary badge-sm">{"+"}{p}</span>
+                                                                <span class="badge p-1 badge-secondary badge-sm">{"+"}{p}</span>
                                                             }).collect::<Vec<_>>()}
                                                             {contexts.into_iter().map(|c| view! {
-                                                                <span class="badge badge-accent badge-sm">{"@"}{c}</span>
+                                                                <span class="badge p-1 badge-accent badge-sm">{"@"}{c}</span>
                                                             }).collect::<Vec<_>>()}
-                                                        </div>
                                                     </div>
 
 

@@ -1,4 +1,5 @@
 mod app;
+mod project_tree;
 
 use app::*;
 use leptos::prelude::*;
