@@ -24,6 +24,11 @@ struct AddTodoArgs<'a> {
     text: &'a str,
 }
 
+#[derive(Serialize)]
+struct ToggleTodoArgs {
+    id: usize,
+}
+
 fn priority_label(p: u8) -> Option<&'static str> {
     match p {
         0 => Some("A"),
@@ -126,26 +131,40 @@ pub fn App() -> impl IntoView {
                                     each=move || todos.get()
                                     key=|item| item.id
                                     children=move |item| {
+                                        let id = item.id;
                                         let finished = item.finished;
                                         let subject = item.subject.clone();
                                         let priority = item.priority;
                                         let contexts = item.contexts.clone();
                                         let projects = item.projects.clone();
 
+                                        let on_toggle = move |_| {
+                                            spawn_local(async move {
+                                                let args = serde_wasm_bindgen::to_value(&ToggleTodoArgs { id }).unwrap();
+                                                let result = invoke("toggle_todo", args).await;
+                                                match serde_wasm_bindgen::from_value::<Vec<TodoItem>>(result) {
+                                                    Ok(items) => {
+                                                        set_error.set(None);
+                                                        set_todos.set(items);
+                                                    }
+                                                    Err(e) => set_error.set(Some(format!("Failed to toggle todo: {e}"))),
+                                                }
+                                            });
+                                        };
+
                                         view! {
-                                            <li class="list-row">
+                                            <li class="list-row cursor-pointer" on:click=on_toggle>
                                                 <div class="flex items-center gap-3 w-full">
                                                     <input
                                                         type="checkbox"
-                                                        class="checkbox"
-                                                        checked=finished
-                                                        disabled=true
+                                                        class="checkbox checkbox-accent"
+                                                        prop:checked=finished
                                                     />
                                                     <div class="flex-1">
                                                         <span
-                                                        class=("line-through", finished)
-                                                        class=("opacity-50", finished)
-                                                    >
+                                                            class=("line-through", finished)
+                                                            class=("opacity-50", finished)
+                                                        >
                                                             {subject.clone()}
                                                         </span>
                                                         <div class="flex gap-1 mt-1">
