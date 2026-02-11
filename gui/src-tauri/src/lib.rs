@@ -54,11 +54,19 @@ fn toggle_todo(id: usize) -> Result<Vec<TodoResponse>, String> {
     Ok(to_response(&list))
 }
 
+#[tauri::command]
+fn delete_todo(id: usize) -> Result<Vec<TodoResponse>, String> {
+    let mut list = TodoList::from_file(TODO_PATH).map_err(|e| e.to_string())?;
+    list.remove(id).ok_or("Todo not found")?;
+    list.save().map_err(|e| e.to_string())?;
+    Ok(to_response(&list))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_todos, add_todo, toggle_todo])
+        .invoke_handler(tauri::generate_handler![get_todos, add_todo, toggle_todo, delete_todo])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

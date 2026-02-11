@@ -29,6 +29,11 @@ struct ToggleTodoArgs {
     id: usize,
 }
 
+#[derive(Serialize)]
+struct DeleteTodoArgs {
+    id: usize,
+}
+
 fn priority_label(p: u8) -> Option<&'static str> {
     match p {
         0 => Some("A"),
@@ -152,15 +157,30 @@ pub fn App() -> impl IntoView {
                                             });
                                         };
 
+                                        let on_delete = move |ev: leptos::ev::MouseEvent| {
+                                            ev.stop_propagation();
+                                            spawn_local(async move {
+                                                let args = serde_wasm_bindgen::to_value(&DeleteTodoArgs { id }).unwrap();
+                                                let result = invoke("delete_todo", args).await;
+                                                match serde_wasm_bindgen::from_value::<Vec<TodoItem>>(result) {
+                                                    Ok(items) => {
+                                                        set_error.set(None);
+                                                        set_todos.set(items);
+                                                    }
+                                                    Err(e) => set_error.set(Some(format!("Failed to delete todo: {e}"))),
+                                                }
+                                            });
+                                        };
+
                                         view! {
-                                            <li class="list-row cursor-pointer" on:click=on_toggle>
-                                                <div class="flex items-center gap-3 w-full">
+                                            <li class="list-row group cursor-pointer hover:bg-base-300 transition-colors" >
                                                     <input
                                                         type="checkbox"
                                                         class="checkbox checkbox-accent"
                                                         prop:checked=finished
+                                                        on:click=on_toggle
                                                     />
-                                                    <div class="flex-1">
+                                                    <div class="">
                                                         <span
                                                             class=("line-through", finished)
                                                             class=("opacity-50", finished)
@@ -179,7 +199,16 @@ pub fn App() -> impl IntoView {
                                                             }).collect::<Vec<_>>()}
                                                         </div>
                                                     </div>
-                                                </div>
+
+
+                                                    <button
+                                                        class="btn btn-ghost btn-sm opacity-0 group-hover:opacity-80 transition-opacity"
+                                                        on:click=on_delete
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                        </svg>
+                                                    </button>
                                             </li>
                                         }
                                     }
