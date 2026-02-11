@@ -115,8 +115,8 @@ pub fn App() -> impl IntoView {
 
             // Main content
             <main class="ml-16 flex-1 overflow-y-auto bg-base-200 p-8">
-                <div class="max-w-2xl mx-auto">
-                    <h1 class="text-3xl font-bold mb-6">"Todo.txt"</h1>
+                <div class="max-w-5xl mx-auto">
+                    <h1 class="text-3xl font-bold mb-6">"Inbox"</h1>
 
                     {move || error.get().map(|e| view! {
                         <div class="alert alert-error mb-4">
