@@ -77,72 +77,100 @@ pub fn App() -> impl IntoView {
     };
 
     view! {
-        <main class="min-h-screen bg-base-200 p-8">
-            <div class="max-w-2xl mx-auto">
-                <div class="flex items-center justify-between mb-6">
-                    <h1 class="text-3xl font-bold">"Todo.txt"</h1>
-                    <button
-                        class="btn btn-primary"
-                        on:click=move |_| set_dialog_open.set(true)
-                    >
-                        "+"
-                    </button>
-                </div>
+        <div class="flex h-screen">
+            // Sidebar navigation
+            <nav class="fixed left-0 top-0 h-full w-16 bg-base-300 flex flex-col items-center py-4 z-50">
+                <ul class="menu menu-vertical gap-2">
+                    <li>
+                        <a class="menu-active tooltip tooltip-right" data-tip="Todos">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="tooltip tooltip-right" data-tip="Add Todo"
+                            on:click=move |_| set_dialog_open.set(true)
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="tooltip tooltip-right" data-tip="Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
 
-                {move || error.get().map(|e| view! {
-                    <div class="alert alert-error mb-4">
-                        <span>{e}</span>
-                    </div>
-                })}
+            // Main content
+            <main class="ml-16 flex-1 overflow-y-auto bg-base-200 p-8">
+                <div class="max-w-2xl mx-auto">
+                    <h1 class="text-3xl font-bold mb-6">"Todo.txt"</h1>
 
-                <div class="card bg-base-100 shadow-xl">
-                    <div class="card-body p-0">
-                        <ul class="list">
-                            <For
-                                each=move || todos.get()
-                                key=|item| item.id
-                                children=move |item| {
-                                    let finished = item.finished;
-                                    let subject = item.subject.clone();
-                                    let priority = item.priority;
-                                    let contexts = item.contexts.clone();
-                                    let projects = item.projects.clone();
+                    {move || error.get().map(|e| view! {
+                        <div class="alert alert-error mb-4">
+                            <span>{e}</span>
+                        </div>
+                    })}
 
-                                    view! {
-                                        <li class="list-row">
-                                            <div class="flex items-center gap-3 w-full">
-                                                <input
-                                                    type="checkbox"
-                                                    class="checkbox"
-                                                    checked=finished
-                                                    disabled=true
-                                                />
-                                                <div class="flex-1">
-                                                    <span class=("line-through opacity-50", finished)>
-                                                        {subject.clone()}
-                                                    </span>
-                                                    <div class="flex gap-1 mt-1">
-                                                        {priority_label(priority).map(|p| view! {
-                                                            <span class="badge badge-primary badge-sm">{p}</span>
-                                                        })}
-                                                        {projects.into_iter().map(|p| view! {
-                                                            <span class="badge badge-secondary badge-sm">{"+"}{p}</span>
-                                                        }).collect::<Vec<_>>()}
-                                                        {contexts.into_iter().map(|c| view! {
-                                                            <span class="badge badge-accent badge-sm">{"@"}{c}</span>
-                                                        }).collect::<Vec<_>>()}
+                    <div class="card bg-base-100 shadow-xl">
+                        <div class="card-body p-0">
+                            <ul class="list">
+                                <For
+                                    each=move || todos.get()
+                                    key=|item| item.id
+                                    children=move |item| {
+                                        let finished = item.finished;
+                                        let subject = item.subject.clone();
+                                        let priority = item.priority;
+                                        let contexts = item.contexts.clone();
+                                        let projects = item.projects.clone();
+
+                                        view! {
+                                            <li class="list-row">
+                                                <div class="flex items-center gap-3 w-full">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="checkbox"
+                                                        checked=finished
+                                                        disabled=true
+                                                    />
+                                                    <div class="flex-1">
+                                                        <span
+                                                        class=("line-through", finished)
+                                                        class=("opacity-50", finished)
+                                                    >
+                                                            {subject.clone()}
+                                                        </span>
+                                                        <div class="flex gap-1 mt-1">
+                                                            {priority_label(priority).map(|p| view! {
+                                                                <span class="badge badge-primary badge-sm">{p}</span>
+                                                            })}
+                                                            {projects.into_iter().map(|p| view! {
+                                                                <span class="badge badge-secondary badge-sm">{"+"}{p}</span>
+                                                            }).collect::<Vec<_>>()}
+                                                            {contexts.into_iter().map(|c| view! {
+                                                                <span class="badge badge-accent badge-sm">{"@"}{c}</span>
+                                                            }).collect::<Vec<_>>()}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </li>
+                                            </li>
+                                        }
                                     }
-                                }
-                            />
-                        </ul>
+                                />
+                            </ul>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </div>
 
         <dialog class="modal" class:modal-open=move || dialog_open.get()>
             <div class="modal-box">
