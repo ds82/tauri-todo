@@ -54,6 +54,10 @@ impl TodoItem {
     pub fn raw(&self) -> String {
         self.inner.to_string()
     }
+
+    pub fn set_raw(&mut self, raw: &str) {
+        self.inner = todo_txt::task::Simple::from(raw.to_string());
+    }
 }
 
 impl fmt::Display for TodoItem {

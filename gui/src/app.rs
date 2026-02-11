@@ -13,6 +13,7 @@ extern "C" {
 struct TodoItem {
     id: usize,
     subject: String,
+    raw: String,
     finished: bool,
     priority: u8,
     contexts: Vec<String>,
@@ -27,6 +28,12 @@ struct AddTodoArgs<'a> {
 #[derive(Serialize)]
 struct ToggleTodoArgs {
     id: usize,
+}
+
+#[derive(Serialize)]
+struct EditTodoArgs<'a> {
+    id: usize,
+    text: &'a str,
 }
 
 #[derive(Serialize)]
@@ -49,6 +56,8 @@ pub fn App() -> impl IntoView {
     let (error, set_error) = signal(Option::<String>::None);
     let (dialog_open, set_dialog_open) = signal(false);
     let (new_todo, set_new_todo) = signal(String::new());
+    let (editing_id, set_editing_id) = signal(Option::<usize>::None);
+    let (edit_text, set_edit_text) = signal(String::new());
 
     let load_todos = move || {
         spawn_local(async move {
@@ -134,7 +143,7 @@ pub fn App() -> impl IntoView {
                             <ul class="list">
                                 <For
                                     each=move || todos.get()
-                                    key=|item| item.id
+                                    key=|item| (item.id, item.raw.clone(), item.finished)
                                     children=move |item| {
                                         let id = item.id;
                                         let finished = item.finished;
@@ -172,6 +181,35 @@ pub fn App() -> impl IntoView {
                                             });
                                         };
 
+                                        let raw = item.raw.clone();
+
+                                        let on_text_click = move |ev: leptos::ev::MouseEvent| {
+                                            ev.stop_propagation();
+                                            set_editing_id.set(Some(id));
+                                            set_edit_text.set(raw.clone());
+                                        };
+
+                                        let on_edit_keydown = move |ev: leptos::ev::KeyboardEvent| {
+                                            if ev.key() == "Enter" {
+                                                ev.prevent_default();
+                                                let text = edit_text.get_untracked();
+                                                set_editing_id.set(None);
+                                                spawn_local(async move {
+                                                    let args = serde_wasm_bindgen::to_value(&EditTodoArgs { id, text: &text }).unwrap();
+                                                    let result = invoke("edit_todo", args).await;
+                                                    match serde_wasm_bindgen::from_value::<Vec<TodoItem>>(result) {
+                                                        Ok(items) => {
+                                                            set_error.set(None);
+                                                            set_todos.set(items);
+                                                        }
+                                                        Err(e) => set_error.set(Some(format!("Failed to edit todo: {e}"))),
+                                                    }
+                                                });
+                                            } else if ev.key() == "Escape" {
+                                                set_editing_id.set(None);
+                                            }
+                                        };
+
                                         view! {
                                             <li class="list-row group cursor-pointer hover:bg-base-300 transition-colors" >
                                                     <input
@@ -184,9 +222,20 @@ pub fn App() -> impl IntoView {
                                                         <span
                                                             class=("line-through", finished)
                                                             class=("opacity-50", finished)
+                                                            class=("hidden", move || editing_id.get() == Some(id))
+                                                            on:click=on_text_click
                                                         >
                                                             {subject.clone()}
                                                         </span>
+                                                        <input
+                                                            type="text"
+                                                            class="input input-bordered input-sm w-full"
+                                                            class=("hidden", move || editing_id.get() != Some(id))
+                                                            prop:value=move || edit_text.get()
+                                                            on:input=move |ev| set_edit_text.set(event_target_value(&ev))
+                                                            on:keydown=on_edit_keydown
+                                                            on:blur=move |_| set_editing_id.set(None)
+                                                        />
                                                         <div class="flex gap-1 mt-1">
                                                             {priority_label(priority).map(|p| view! {
                                                                 <span class="badge badge-primary badge-sm">{p}</span>
