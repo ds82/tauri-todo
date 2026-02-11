@@ -333,14 +333,20 @@ pub fn App() -> impl IntoView {
                                                             on:blur=move |_| set_editing_id.set(None)
                                                         />
                                                         <span>" "</span>
+                                                    </div>
+                                                    <div class="">
                                                             {priority_label(priority).map(|p| view! {
-                                                                <span class="badge p-1 badge-primary badge-sm">{p}</span>
+                                                                <span class="badge p-1 badge-primary badge-sm">{p}</span>" "
                                                             })}
+                                                    </div>
+                                                    <div class="">
                                                             {projects.into_iter().map(|p| view! {
-                                                                <span class="badge p-1 badge-secondary badge-sm">{"+"}{p}</span>
+                                                                <span class="badge p-1 badge-secondary badge-sm">{"+"}{p}</span>" "
                                                             }).collect::<Vec<_>>()}
+                                                    </div>
+                                                    <div class="">
                                                             {contexts.into_iter().map(|c| view! {
-                                                                <span class="badge p-1 badge-accent badge-sm">{"@"}{c}</span>
+                                                                <span class="badge p-1 badge-accent badge-sm">{"@"}{c}</span>" "
                                                             }).collect::<Vec<_>>()}
                                                     </div>
 
