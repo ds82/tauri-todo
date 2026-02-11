@@ -1,6 +1,8 @@
 use serde::Serialize;
 use todotxt::TodoList;
 
+const TODO_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../todo.txt");
+
 #[derive(Serialize)]
 struct TodoResponse {
     id: usize,
@@ -11,13 +13,8 @@ struct TodoResponse {
     projects: Vec<String>,
 }
 
-#[tauri::command]
-fn get_todos() -> Result<Vec<TodoResponse>, String> {
-    let todo_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../todo.txt");
-    let list = TodoList::from_file(todo_path).map_err(|e| e.to_string())?;
-
-    Ok(list
-        .items()
+fn to_response(list: &TodoList) -> Vec<TodoResponse> {
+    list.items()
         .iter()
         .map(|item| TodoResponse {
             id: item.id,
@@ -27,14 +24,28 @@ fn get_todos() -> Result<Vec<TodoResponse>, String> {
             contexts: item.contexts().to_vec(),
             projects: item.projects().to_vec(),
         })
-        .collect())
+        .collect()
+}
+
+#[tauri::command]
+fn get_todos() -> Result<Vec<TodoResponse>, String> {
+    let list = TodoList::from_file(TODO_PATH).map_err(|e| e.to_string())?;
+    Ok(to_response(&list))
+}
+
+#[tauri::command]
+fn add_todo(text: &str) -> Result<Vec<TodoResponse>, String> {
+    let mut list = TodoList::from_file(TODO_PATH).map_err(|e| e.to_string())?;
+    list.add(text);
+    list.save().map_err(|e| e.to_string())?;
+    Ok(to_response(&list))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_todos])
+        .invoke_handler(tauri::generate_handler![get_todos, add_todo])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
