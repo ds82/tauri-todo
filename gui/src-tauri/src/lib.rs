@@ -19,7 +19,12 @@ fn to_response(list: &TodoList) -> Vec<TodoResponse> {
         .iter()
         .map(|item| TodoResponse {
             id: item.id,
-            subject: item.subject().to_string(),
+            subject: item
+                .subject()
+                .split_whitespace()
+                .filter(|w| !w.starts_with('@') && !w.starts_with('+'))
+                .collect::<Vec<_>>()
+                .join(" "),
             raw: item.raw(),
             finished: item.finished(),
             priority: item.priority(),
